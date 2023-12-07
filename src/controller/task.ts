@@ -46,8 +46,9 @@ export const getTasks = async (req: AuthenticatedRequest, res: Response) => {
       title: 1,
       description: 1,
       tags: 1,
-      priorty: 1,
+      priority: 1,
       dueDate: 1,
+      status: 1,
     });
 
     console.log({ tasks });

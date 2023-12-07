@@ -8,9 +8,52 @@ interface AuthenticatedRequest extends Request {
 
 export const getTasks = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const tasks = await Task.find({ user: req?.userId });
+    const { q, filter, limit, skip } = req.query as unknown as {
+      q: string;
+      filter: string;
+      limit: string;
+      skip: string;
+    };
+
+    // Build query object
+    let queryObject = {};
+    if (q) {
+      queryObject = {
+        $text: { $search: q },
+      };
+    }
+    if (filter) {
+      try {
+        const parsedFilter = JSON.parse(filter);
+        queryObject = { ...queryObject, ...parsedFilter };
+      } catch (error) {
+        // Handle invalid filter format
+        return res.status(400).json({ message: 'Invalid filter format' });
+      }
+    }
+
+    // Apply pagination if parameters provided
+    const options = {} as unknown as { limit: number; skip: number };
+    if (limit) {
+      options.limit = parseInt(limit);
+    }
+    if (skip) {
+      options.skip = parseInt(skip);
+    }
+
+    const tasks = await Task.find(queryObject, options).select({
+      _id: 0,
+      title: 1,
+      description: 1,
+      tags: 1,
+      priorty: 1,
+      dueDate: 1,
+    });
+
+    console.log({ tasks });
     res.json({ tasks });
   } catch (error) {
+    console.log({ error });
     res.status(500).json({ message: 'Error fetching tasks' });
   }
 };

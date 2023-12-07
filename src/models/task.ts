@@ -12,4 +12,6 @@ const TaskSchema = new Schema({
   user: { type: Schema.Types.ObjectId, ref: 'User' },
 });
 
+TaskSchema.index({ title: 'text', description: 'text', tags: 'text' });
+
 export default mongoose.model('Task', TaskSchema);

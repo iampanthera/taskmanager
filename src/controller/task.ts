@@ -8,31 +8,30 @@ interface AuthenticatedRequest extends Request {
 
 export const getTasks = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { q, filter, limit, skip } = req.query as unknown as {
-      q: string;
-      filter: string;
-      limit: string;
-      skip: string;
-    };
+    const { q, statusFilter, priorityFilter, limit, skip } =
+      req.query as unknown as {
+        q: string;
+        statusFilter: string;
+        priorityFilter: string;
+        limit: string;
+        skip: string;
+      };
 
     // Build query object
-    let queryObject = {};
+    let queryObject: any = {};
     if (q) {
       queryObject = {
         $text: { $search: q },
       };
     }
-    if (filter) {
-      try {
-        const parsedFilter = JSON.parse(filter);
-        queryObject = { ...queryObject, ...parsedFilter };
-      } catch (error) {
-        // Handle invalid filter format
-        return res.status(400).json({ message: 'Invalid filter format' });
-      }
+
+    if (statusFilter) {
+      queryObject.status = statusFilter;
+    }
+    if (priorityFilter && priorityFilter != "0") {
+      queryObject.priority = parseInt(priorityFilter);
     }
 
-    // Apply pagination if parameters provided
     const options = {} as unknown as { limit: number; skip: number };
     if (limit) {
       options.limit = parseInt(limit);
@@ -41,18 +40,14 @@ export const getTasks = async (req: AuthenticatedRequest, res: Response) => {
       options.skip = parseInt(skip);
     }
 
-    const tasks = await Task.find(queryObject, options).select({
-      _id: 0,
-      title: 1,
-      description: 1,
-      tags: 1,
-      priority: 1,
-      dueDate: 1,
-      status: 1,
-    });
+    const tasks = await Task.find(queryObject)
+      .limit(options.limit)
+      .skip(options.skip);
+
+    const totalTasksCount = await Task.countDocuments(queryObject);
 
     console.log({ tasks });
-    res.json({ tasks });
+    res.json({ tasks, totalTasksCount });
   } catch (error) {
     console.log({ error });
     res.status(500).json({ message: 'Error fetching tasks' });
@@ -79,7 +74,7 @@ export const getTaskById = async (req: AuthenticatedRequest, res: Response) => {
 
 export const createTask = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { title, description, dueDate, priority, tags } = req.body;
+    const { title, description, dueDate, priority, status, tags } = req.body;
 
     const user = await User.findById(req?.userId);
 
@@ -88,6 +83,7 @@ export const createTask = async (req: AuthenticatedRequest, res: Response) => {
       description,
       dueDate,
       priority,
+      status,
       tags,
       user: user?._id,
     });
